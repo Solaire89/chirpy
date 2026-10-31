@@ -6,3 +6,5 @@ const adminHTML = `<html>
     <p>Chirpy has been visited %d times!</p>
   </body>
 </html>`
+
+const censor = "****"
