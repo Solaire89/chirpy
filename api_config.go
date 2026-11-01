@@ -82,12 +82,13 @@ func (a *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
+	param.Body = censorBadWord(param.Body)
 
-	type returnValid struct {
-		Valid bool `json:"valid"`
+	type returnCleanedChirp struct {
+		CleanedBody string `json:"cleaned_body"`
 	}
 
-	respondWithJSON(w, 200, returnValid{
-		Valid: true,
+	respondWithJSON(w, 200, returnCleanedChirp{
+		CleanedBody: param.Body,
 	})
 }
