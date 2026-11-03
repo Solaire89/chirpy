@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+	"time"
+
+	"github.com/Solaire89/chirpy/internal/database"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
 }
 
 func (a *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -25,6 +32,15 @@ func (a *apiConfig) handlerPrintRequests(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *apiConfig) handlerResetCount(w http.ResponseWriter, r *http.Request) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("error loading environment: %s", err)
+	}
+	PLATFORM := os.Getenv("PLATFORM")
+	if PLATFORM != "dev" {
+		respondWithError(w, 403, "forbidden")
+	}
+	a.db.ClearTable(r.Context())
 	a.fileserverHits.Store(0)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Resets counter to 0"))
@@ -66,10 +82,6 @@ func (a *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request
 		Body string `json:"body"`
 	}
 
-	type returnError struct {
-		Error string `json:"error"`
-	}
-
 	decoder := json.NewDecoder(r.Body)
 	param := params{}
 	err := decoder.Decode(&param)
@@ -91,4 +103,38 @@ func (a *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request
 	respondWithJSON(w, 200, returnCleanedChirp{
 		CleanedBody: param.Body,
 	})
+}
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
+
+func (a *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
+	type emailParams struct {
+		Email string `json:"email"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	param := emailParams{}
+	if err := decoder.Decode(&param); err != nil {
+		respondWithError(w, 400, "Bad response")
+		return
+	}
+	user, err := a.db.CreateUser(r.Context(), param.Email)
+	userParam := User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+
+	if err != nil {
+		log.Printf("Error creating user: %s", err)
+		respondWithError(w, 500, "internal server error")
+		return
+	}
+
+	respondWithJSON(w, 201, userParam)
 }
