@@ -77,9 +77,10 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(dat)
 }
 
-func (a *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
 	type params struct {
-		Body string `json:"body"`
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -97,11 +98,13 @@ func (a *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request
 	param.Body = censorBadWord(param.Body)
 
 	type returnCleanedChirp struct {
-		CleanedBody string `json:"cleaned_body"`
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
 	}
 
-	respondWithJSON(w, 200, returnCleanedChirp{
-		CleanedBody: param.Body,
+	respondWithJSON(w, 201, returnCleanedChirp{
+		Body:   param.Body,
+		UserID: param.UserID,
 	})
 }
 
