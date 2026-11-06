@@ -39,6 +39,7 @@ func (a *apiConfig) handlerResetCount(w http.ResponseWriter, r *http.Request) {
 	PLATFORM := os.Getenv("PLATFORM")
 	if PLATFORM != "dev" {
 		respondWithError(w, 403, "forbidden")
+		return
 	}
 	a.db.ClearTable(r.Context())
 	a.fileserverHits.Store(0)
@@ -66,46 +67,14 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
 	dat, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("error marshalling: %s", err)
 		w.WriteHeader(500)
 		return
 	}
-	w.WriteHeader(200)
+	w.WriteHeader(code)
 	w.Write(dat)
-}
-
-func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
-	type params struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	param := params{}
-	err := decoder.Decode(&param)
-	if err != nil {
-		respondWithError(w, 400, "Bad response")
-		return
-	}
-
-	if len(param.Body) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
-		return
-	}
-	param.Body = censorBadWord(param.Body)
-
-	type returnCleanedChirp struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
-	}
-
-	respondWithJSON(w, 201, returnCleanedChirp{
-		Body:   param.Body,
-		UserID: param.UserID,
-	})
 }
 
 type User struct {
@@ -122,7 +91,7 @@ func (a *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	param := emailParams{}
 	if err := decoder.Decode(&param); err != nil {
-		respondWithError(w, 400, "Bad response")
+		respondWithError(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	user, err := a.db.CreateUser(r.Context(), param.Email)
@@ -134,10 +103,10 @@ func (a *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		log.Printf("Error creating user: %s", err)
-		respondWithError(w, 500, "internal server error")
+		log.Printf("error creating user: %s", err)
+		respondWithError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	respondWithJSON(w, 201, userParam)
+	respondWithJSON(w, http.StatusCreated, userParam)
 }
