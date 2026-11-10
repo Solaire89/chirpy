@@ -85,11 +85,12 @@ type User struct {
 }
 
 func (a *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
-	type emailParams struct {
-		Email string `json:"email"`
+	type userParams struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	decoder := json.NewDecoder(r.Body)
-	param := emailParams{}
+	param := userParams{}
 	if err := decoder.Decode(&param); err != nil {
 		respondWithError(w, http.StatusBadRequest, "bad request")
 		return
