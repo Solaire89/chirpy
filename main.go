@@ -29,9 +29,15 @@ func main() {
 	}
 	dbQueries := database.New(db)
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be set")
+	}
+
 	apiCfg := &apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
+		Secret:         jwtSecret,
 	}
 
 	mux := http.NewServeMux()

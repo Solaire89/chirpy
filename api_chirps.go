@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Solaire89/chirpy/internal/auth"
 	"github.com/Solaire89/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -22,6 +23,7 @@ func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
 	type params struct {
 		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
+		Token  string    `json:"token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -32,6 +34,16 @@ func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authToken, err := auth.GetBearerToken(w.Header())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error obtaining token")
+	}
+
+	userID, err := auth.ValidateJWT(authToken, a.Secret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	if len(param.Body) > 140 {
 		respondWithError(w, http.StatusBadRequest, "Chirp is too long")
 		return
@@ -39,7 +51,7 @@ func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
 	param.Body = censorBadWord(param.Body)
 	chirp := database.CreateChirpParams{
 		Body:   param.Body,
-		UserID: param.UserID,
+		UserID: userID,
 	}
 
 	c, err := a.db.CreateChirp(r.Context(), chirp)
