@@ -34,14 +34,16 @@ func (a *apiConfig) handlerPostChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authToken, err := auth.GetBearerToken(w.Header())
+	authToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error obtaining token")
+		return
 	}
 
 	userID, err := auth.ValidateJWT(authToken, a.Secret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	if len(param.Body) > 140 {
